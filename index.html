@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>약속마스터 v8.3 - MeetUp CheatKey (실시간 API & 텍스트 UI)</title>
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=8bfbf5a8d07c8b786b28b659aad20e47&libraries=services"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background-color: var(--bg); color: var(--text); margin: 0; padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { color: var(--primary); margin-bottom: 5px; }
+        
+        .main-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        .tab-lnk { background: #e2e8f0; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; color: #475569; font-size: 0.9rem; }
+        .tab-lnk.active { background: var(--primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        @media (max-width: 992px) { .grid { grid-template-columns: 1fr; } }
+        .card {
+            background: var(--card); border-radius: 12px; padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 20px;
+        }
+        h2 { font-size: 1.2rem; margin-top: 0; display: flex; align-items: center; gap: 8px; color: #334155; margin-bottom: 15px; }
+        
+        .form-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px; border-bottom: 1px dashed var(--border); padding-bottom: 10px; gap: 10px;
+        }
+        .form-row:last-child { border-bottom: none; }
+        .form-row label { margin: 0; flex: 0 0 45%; font-weight: 600; font-size: 0.9rem; color: #334155; line-height: 1.3; }
+        .form-row input, .form-row select { flex: 1; padding: 8px 10px; text-align: right; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; width: 100%; }
+
+        .checkbox-group { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 15px; margin: 15px 0; background: #e0e7ff; padding: 12px; border-radius: 8px; }
+        .checkbox-group label { display: flex; align-items: center; margin: 0; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
+        .checkbox-group input[type="checkbox"] { width: auto; margin-right: 5px; cursor: pointer; }
+
+        .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px; transition: 0.2s; text-align: center; }
+        .btn:hover { background: var(--primary-hover); }
+        .btn-secondary { background: #64748b; margin-top: 5px; }
+        .btn-danger { background: #ef4444; }
+        
+        #mainMap, #reportMap { width: 100%; height: 450px; border-radius: 12px; border: 1px solid var(--border); margin-top: 10px; z-index: 1; }
+        #reportMap { height: 320px; }
+
+        .result-box { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 0.95rem; line-height: 1.6; max-height: 600px; overflow-y: auto; }
+        .rank-badge { background: #4f46e5; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; margin-right: 5px; }
+        .best-badge { background: #eab308; color: #713f12; padding: 3px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; margin-left: 5px; }
+        
+        .sub-block { background: white; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        
+        .member-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; justify-content: space-between; }
+        .member-row span { min-width: 80px; font-weight: bold; font-size: 0.85rem; }
+        .member-row input { text-align: right; flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: white; padding: 30px; border-radius: 16px; text-align: center; max-width: 420px; width: 90%; }
+        
+        .roulette-wrapper { position: relative; display: inline-block; margin: 20px 0; }
+        .roulette-arrow { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 25px solid #ef4444; z-index: 10; filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.3)); }
+        #rouletteCanvas { border: 4px solid #334155; border-radius: 50%; display: block; }
+        .badge-pending { background: #fef3c7; color: #d97706; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .coord-box { background: #e0f2fe; color: #0369a1; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 5px; text-align: center; border: 1px dashed #0284c7;}
+
+        .custom-overlay { padding: 6px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; color: white; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: pointer; white-space: nowrap; transition: 0.2s; }
+        .custom-overlay:hover { transform: scale(1.1); z-index: 100; }
+        .marker-center { background-color: #4f46e5; }
+        .marker-food { background-color: #ef4444; }
+        .marker-play { background-color: #a855f7; }
+        .marker-toilet { background-color: #10b981; }
+
+        #tab-dutch input, #tab-report input, #tab-report select, #tab-report textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
+        #tab-report label { display: block; margin: 12px 0 5px; font-weight: 600; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>⚡ 약속마스터 v8.3 (API 완벽 텍스트 뷰)</h1>
+        <p>카카오맵 실시간 서치 복구 & 깔끔한 텍스트 전용 UI 적용</p>
+    </header>
+
+    <div class="main-tabs">
+        <button class="tab-lnk active" onclick="switchTab('tab-recommend')">📍 1 & 2. 맞춤형 약속 추천 및 지도</button>
+        <button class="tab-lnk" onclick="switchTab('tab-dutch')">💸 3. 무한 n차 정산기</button>
+        <button class="tab-lnk" onclick="switchTab('tab-report')">🚨 4. 화장실 실시간 제보 센터</button>
+        <button class="tab-lnk" onclick="switchTab('tab-admin')">🔒 5. 개발자 심의실</button>
+    </div>
+
+    <div id="tab-recommend" class="tab-content active">
+        <div class="grid">
+            <div class="card">
+                <h2>👥 1-A. 멤버별 출발지 설정</h2>
+                <div class="form-row">
+                    <label>모임 참여 총 인원 수</label>
+                    <input type="number" id="matchPeopleCount" value="3" min="1" max="10" onchange="generateMemberInputs()">
+                </div>
+                
+                <div id="memberInputsContainer" style="margin-top:10px; margin-bottom: 25px;"></div>
+
+                <h2>🍔 1-B. 실시간 맛집 필터 검색기</h2>
+                <div class="form-row">
+                    <label>🕒 최근/어제 먹은 음식 (검색 배제)</label>
+                    <select id="yesterdayFood">
+                        <option value="none">없음</option>
+                        <option value="중식">중식 (짜장면, 마라탕 등)</option>
+                        <option value="일식">일식 (초밥, 돈가스 등)</option>
+                        <option value="한식">한식 (고기, 국밥 등)</option>
+                        <option value="양식">양식 (파스타, 피자 등)</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>오늘 기피하는 음식 (쉼표 구분)</label>
+                    <input type="text" id="hateFood" placeholder="예: 회, 곱창, 짜장면">
+                </div>
+                <div class="form-row">
+                    <label>🤢 현재 신체 특이 컨디션</label>
+                    <select id="condition">
+                        <option value="none">정상 (자유로운 맛집 탐색)</option>
+                        <option value="stomach">위염/장염 ('죽' 전문점 탐색)</option>
+                        <option value="diet">다이어트 ('샐러드', '포케' 탐색)</option>
+                    </select>
+                </div>
+
+                <h2 style="margin-top: 25px;">🎯 1-C. 실시간 놀거리 필터 검색기</h2>
+                <div class="form-row">
+                    <label>🕹️ 최근에 즐겼던 놀거리 (배제용)</label>
+                    <input type="text" id="recentPlay" placeholder="예: PC방, 코인노래방">
+                </div>
+                <div class="form-row">
+                    <label>💡 주요 관심사</label>
+                    <input type="text" id="interest" placeholder="예: 맛집탐방, 전시회">
+                </div>
+                <div class="form-row">
+                    <label>🎨 대표 취미</label>
+                    <input type="text" id="hobby" placeholder="예: 보드게임, 방탈출">
+                </div>
+                <div class="form-row">
+                    <label>🥵 현재 육체 피로 상태</label>
+                    <select id="fatigue">
+                        <option value="low">🙂 보통 (일반적인 놀거리)</option>
+                        <option value="max">⚡ 최상 (체력 소모 액티비티)</option>
+                        <option value="high">😪 피로 (정적인 공간, 룸카페)</option>
+                    </select>
+                </div>
+
+                <div class="checkbox-group">
+                    <label><input type="checkbox" id="chkPlace" checked> 📍 거점 연산</label>
+                    <label><input type="checkbox" id="chkFood" checked> 🍴 맛집 탐색</label>
+                    <label><input type="checkbox" id="chkPlay" checked> 🎯 놀거리 탐색</label>
+                </div>
+
+                <button class="btn" onclick="generateAllRecommendations()">조건 기반 실시간 코스 검색하기</button>
+            </div>
+
+            <div class="card" style="display:flex; flex-direction:column;">
+                <h2>🗺️ 2. 대한민국 정밀 약속 지도 & 추천 내역</h2>
+                <div id="mainMap"></div>
+
+                <div id="resultBoxPlace" class="result-box">
+                    <h3>📍 최적 균등 거점 추천 (Top 3)</h3>
+                    <div id="placeList">출발지를 입력하고 버튼을 누르면 실시간 대중교통 최적 지점이 연산됩니다.</div>
+                </div>
+
+                <div id="resultBoxFood" class="result-box" style="background:#fef2f2;">
+                    <h3>🍴 카카오 API 연동: 조건 부합 실시간 식당</h3>
+                    <div id="foodList">각 추천 거점 주변에 실제 존재하는 식당을 실시간으로 검색하여 노출합니다.</div>
+                </div>
+
+                <div id="resultBoxPlay" class="result-box" style="background:#f5f3ff;">
+                    <h3>🎯 카카오 API 연동: 취미/피로도 맞춤 놀거리</h3>
+                    <div id="playList">입력하신 취미 키워드를 바탕으로 각 거점 주변 장소를 탐색합니다.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-dutch" class="tab-content">
+        <div class="grid">
+            <div class="card">
+                <h2>💸 3. 무한 차수 연속 정산기</h2>
+                <p style="font-size:0.85rem; color:#64748b;">금액을 입력할 때마다 다음 결제 차수가 자동으로 무한정 추가됩니다.</p>
+                <div id="dutchBillContainer">
+                    <div class="sub-block" id="round-block-1" style="border-left-color: #10b981;">
+                        <h4>[1차 결제]</h4>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:5px;">
+                            <input type="text" placeholder="장소명(예: 삼겹살집)" id="billName1">
+                            <input type="number" class="bill-amount" placeholder="결제 총 금액 (원)" id="billAmt1" step="1000" oninput="checkAndAddNewRound(1)">
+                        </div>
+                        <input type="number" class="bill-people" placeholder="실제 참여 인원 수 (명)" id="billPpl1" value="3">
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="forceAddRound()">+ 수동 차수 강제 추가</button>
+                <button class="btn" onclick="calculateTotalDutch()">모든 차수 통합 합산 및 룰렛 연동</button>
+                <div id="dutchFinalResult" class="result-box" style="display:none;"></div>
+            </div>
+            <div class="card" style="background: #f1f5f9; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                <h3>🎯 낙첨자 전용 잔돈 독박 룰렛 공간</h3>
+                <div id="dutchRouletteTriggerArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-report" class="tab-content">
+        <div class="card" style="max-width:700px; margin: 0 auto;">
+            <h2>🚨 4. 화장실 실시간 제보 센터</h2>
+            <div id="reportMap"></div>
+            <div class="coord-box" id="coordIndicator">선택된 좌표: 지도를 터치해 주세요.</div>
+            <input type="hidden" id="newTLat" value=""><input type="hidden" id="newTLng" value="">
+            <label style="margin-top:15px;">🏢 화장실 명칭 / 건물명</label>
+            <input type="text" id="newTName" value="오픈 개방 화장실">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div><label>🚽 변기 내부 타입</label><select id="newTType"><option value="수세식">수세식</option><option value="푸세식">푸세식</option></select></div>
+                <div><label>🧻 휴지 구비 여부</label><select id="newTPaper"><option value="있음">있음</option><option value="없음">없음</option></select></div>
+            </div>
+            <label>ℹ️ 구체적인 설명 및 안내 사항</label>
+            <textarea id="newTInfo" rows="2">상가 건물 우측에 개방되어 있습니다.</textarea>
+            <button class="btn" style="background:#db2777;" onclick="submitNewToiletQueue()">심의 대기열로 제보 송신하기</button>
+        </div>
+    </div>
+
+    <div id="tab-admin" class="tab-content">
+        <div class="card" style="max-width:600px; margin: 0 auto;">
+            <h2>🔒 5. 개발자 전용 화장실 실시간 심의실</h2>
+            <div id="adminAuthSection">
+                <label style="display:block; margin-bottom:5px; font-weight:bold;">🔑 관리자 인증 비밀번호</label>
+                <input type="password" id="adminPwd" placeholder="비밀번호를 입력하세요 (기본:1234)" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
+                <button class="btn btn-secondary" onclick="unlockAdminPanel()">심의실 시스템 기동</button>
+            </div>
+            <div id="adminPanelArea" style="display:none; margin-top:20px;">
+                <h3>📬 제보 검토 대기열 목록</h3>
+                <div id="adminQueueContainer"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="rouletteModal" class="modal">
+    <div class="modal-content">
+        <h3>🎯 잔돈 독박 룰렛</h3>
+        <p>남은 잔돈 <span id="penaltyAmount" style="color:red; font-weight:bold;">0</span>원 독박자는?</p>
+        <div class="roulette-wrapper">
+            <div class="roulette-arrow"></div>
+            <canvas id="rouletteCanvas" width="250" height="250"></canvas>
+        </div>
+        <button class="btn" id="spinBtn" onclick="spinWheel()">룰렛 돌리기</button>
+        <button class="btn btn-secondary" onclick="closeModal()">창 닫기</button>
+    </div>
+</div>
+
+<script>
+    let map, reportMap;
+    let markersLayer = [];
+    let reportMarker = null;
+    let currentMaxRound = 1;
+    let rouletteTotalPeople = 3;
+    let rouletteRemainder = 0;
+    let dynamicQueueCount = 0;
+
+    const realHotplaces = [
+        {name: "서울 강남역", lat: 37.4979, lng: 127.0276},
+        {name: "서울 홍대입구역", lat: 37.5565, lng: 126.9235},
+        {name: "서울 성수동 카페거리", lat: 37.5444, lng: 127.0443},
+        {name: "서울 사당역", lat: 37.4765, lng: 126.9816},
+        {name: "서울 혜화역", lat: 37.5823, lng: 127.0019}
+    ];
+
+    const stationPresets = {
+        "강남역": { lat: 37.4979, lng: 127.0276 }, "홍대입구역": { lat: 37.5565, lng: 126.9235 },
+        "사당역": { lat: 37.4765, lng: 126.9816 }, "수원역": { lat: 37.2660, lng: 127.0000 },
+        "왕십리역": { lat: 37.5612, lng: 127.0385}, "잠실역": { lat: 37.5132, lng: 127.1001 }
+    };
+
+    window.onload = function() {
+        generateMemberInputs();
+        initKakaoMap();
+    };
+
+    function generateMemberInputs() {
+        const count = parseInt(document.getElementById('matchPeopleCount').value) || 3;
+        const container = document.getElementById('memberInputsContainer');
+        container.innerHTML = '';
+        const presetNames = ["강남역", "홍대입구역", "사당역", "왕십리역", "잠실역", "수원역"];
+        for (let i = 1; i <= count; i++) {
+            const row = document.createElement('div');
+            row.className = 'member-row';
+            row.innerHTML = `<span>멤버 ${i} 출발:</span> <input type="text" class="member-station-input" value="${presetNames[(i-1)%6]}" placeholder="지하철역 입력">`;
+            container.appendChild(row);
+        }
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-lnk').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+        if (tabId === 'tab-recommend' && map) { setTimeout(() => { map.relayout(); }, 200); } 
+        else if (tabId === 'tab-report') { setTimeout(() => { initReportMap(); }, 200); }
+    }
+
+    function initKakaoMap() {
+        const container = document.getElementById('mainMap');
+        const options = { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 8 };
+        map = new kakao.maps.Map(container, options);
+
+        const defaultToilets = [
+            { lat: 37.4979, lng: 127.0276, name: "강남역 공용 화장실", info: "타입:수세식 / 휴지:있음" },
+            { lat: 37.5567, lng: 126.9235, name: "홍대 공용 화장실", info: "타입:수세식 / 휴지:있음" }
+        ];
+        defaultToilets.forEach(t => appendCustomMarker(t.lat, t.lng, t.name, t.info, 'toilet'));
+    }
+
+    function initReportMap() {
+        if (reportMap) { reportMap.relayout(); return; }
+        const container = document.getElementById('reportMap');
+        const options = { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 7 };
+        reportMap = new kakao.maps.Map(container, options);
+
+        kakao.maps.event.addListener(reportMap, 'click', function(mouseEvent) {
+            const latlng = mouseEvent.latLng;
+            const lat = latlng.getLat().toFixed(5);
+            const lng = latlng.getLng().toFixed(5);
+            document.getElementById('newTLat').value = lat;
+            document.getElementById('newTLng').value = lng;
+            document.getElementById('coordIndicator').innerText = `선택된 위도: ${lat} | 경도: ${lng} (연동완료)`;
+            
+            if (reportMarker) reportMarker.setPosition(latlng);
+            else { reportMarker = new kakao.maps.Marker({ position: latlng }); reportMarker.setMap(reportMap); }
+        });
+    }
+
+    function clearMarkers(exceptionType) {
+        markersLayer = markersLayer.filter(m => {
+            if (m.type === exceptionType) return true;
+            m.overlay.setMap(null);
+            return false;
+        });
+    }
+
+    function appendCustomMarker(lat, lng, title, infoText, type) {
+        let cssClass = '', emoji = '';
+        if(type === 'center') { cssClass = 'marker-center'; emoji = '📍'; }
+        else if (type === 'food') { cssClass = 'marker-food'; emoji = '🍴'; }
+        else if (type === 'play') { cssClass = 'marker-play'; emoji = '🎯'; }
+        else if (type === 'toilet') { cssClass = 'marker-toilet'; emoji = '🚽'; }
+
+        const contentStr = `<div class="custom-overlay ${cssClass}" onclick="alert('${infoText.replace(/'/g, "\\'")}')">${emoji} ${title}</div>`;
+
+        const customOverlay = new kakao.maps.CustomOverlay({
+            position: new kakao.maps.LatLng(lat, lng),
+            content: contentStr,
+            yAnchor: 1.2
+        });
+        customOverlay.setMap(map);
+        markersLayer.push({ overlay: customOverlay, type: type });
+    }
+
+    function fetchMathematicalTransitTime(startCoord, endCoord) {
+        const distKm = Math.sqrt(Math.pow(startCoord.lat - endCoord.lat, 2) + Math.pow(startCoord.lng - endCoord.lng, 2)) * 111;
+        let baseTime = Math.round(distKm * 3.5) + 15; 
+        return baseTime < 10 ? 10 : baseTime;
+    }
+
+    // 💡 [실시간 리얼 API 함수 부활 (에러 핸들링 탑재)]
+    async function searchKakaoRestaurants(lat, lng) {
+        const condition = document.getElementById('condition').value;
+        const yesterday = document.getElementById('yesterdayFood').value;
+        const hateFood = document.getElementById('hateFood').value.trim();
+
+        let keyword = "맛집";
+        if (condition === "stomach") keyword = "죽 전문점";
+        else if (condition === "diet") keyword = "샐러드 포케";
+
+        const ps = new kakao.maps.services.Places();
+        
+        return new Promise((resolve) => {
+            ps.keywordSearch(keyword, (data, status) => {
+                if (status === kakao.maps.services.Status.OK) {
+                    let filtered = data.filter(r => r.category_group_code === 'FD6' || r.category_group_code === 'CE7');
+                    
+                    if (yesterday !== "none") {
+                        filtered = filtered.filter(r => !r.category_name.includes(yesterday));
+                    }
+                    if (hateFood) {
+                        const hates = hateFood.split(',').map(s => s.trim()).filter(s => s);
+                        filtered = filtered.filter(r => !hates.some(h => r.place_name.includes(h) || r.category_name.includes(h)));
+                    }
+                    resolve({ status: 'success', data: filtered.slice(0, 3) }); 
+                } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+                    resolve({ status: 'empty', data: [] });
+                } else {
+                    resolve({ status: 'error', data: [] });
+                }
+            }, { location: new kakao.maps.LatLng(lat, lng), radius: 2000, sort: kakao.maps.services.SortBy.DISTANCE });
+        });
+    }
+
+    async function searchKakaoPlay(lat, lng) {
+        const hobby = document.getElementById('hobby').value.trim();
+        const interest = document.getElementById('interest').value.trim();
+        const fatigue = document.getElementById('fatigue').value;
+        const recentPlay = document.getElementById('recentPlay').value.trim();
+
+        let searchKeyword = "놀거리";
+        if (hobby) searchKeyword = hobby.split(',')[0].trim();
+        else if (interest) searchKeyword = interest.split(',')[0].trim();
+
+        if (fatigue === "max") searchKeyword = "방탈출 액티비티";
+        if (fatigue === "high") searchKeyword = "룸카페 만화카페";
+
+        const ps = new kakao.maps.services.Places();
+        return new Promise((resolve) => {
+            ps.keywordSearch(searchKeyword, (data, status) => {
+                if (status === kakao.maps.services.Status.OK) {
+                    let filtered = data;
+                    if (recentPlay) {
+                        const recents = recentPlay.split(',').map(s => s.trim()).filter(s => s);
+                        filtered = filtered.filter(r => !recents.some(h => r.place_name.includes(h) || r.category_name.includes(h)));
+                    }
+                    resolve({ status: 'success', data: filtered.slice(0, 3) });
+                } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+                    ps.keywordSearch("보드게임 테마파크", (fallbackData, fallbackStatus) => {
+                         if (fallbackStatus === kakao.maps.services.Status.OK) resolve({ status: 'success', data: fallbackData.slice(0, 3) });
+                         else resolve({ status: 'empty', data: [] });
+                    }, { location: new kakao.maps.LatLng(lat, lng), radius: 2000, sort: kakao.maps.services.SortBy.DISTANCE });
+                } else {
+                    resolve({ status: 'error', data: [] });
+                }
+            }, { location: new kakao.maps.LatLng(lat, lng), radius: 2000, sort: kakao.maps.services.SortBy.DISTANCE });
+        });
+    }
+
+    async function generateAllRecommendations() {
+        const inputs = document.querySelectorAll('.member-station-input');
+        let memberStations = [];
+        inputs.forEach(input => { if(input.value.trim()) memberStations.push(input.value.trim()); });
+
+        if(memberStations.length === 0) { alert('출발지를 최소 1개 이상 입력해 주세요.'); return; }
+
+        let coords = [];
+        memberStations.forEach(st => {
+            let coord = stationPresets[st];
+            if (!coord) { 
+                let hash = 0; for (let i = 0; i < st.length; i++) { hash = st.charCodeAt(i) + ((hash << 5) - hash); }
+                coord = { lat: 37.5665 + ((hash % 100) / 1000), lng: 126.9780 + (((hash >> 3) % 100) / 1000) };
+            }
+            coords.push({name: st, lat: coord.lat, lng: coord.lng});
+        });
+
+        let scoredCandidates = [];
+        realHotplaces.forEach(p => {
+            let maxTime = 0, minTime = 9999, totalTime = 0, timeLogs = [];
+            coords.forEach(c => {
+                const time = fetchMathematicalTransitTime(c, p);
+                totalTime += time;
+                if(time > maxTime) maxTime = time;
+                if(time < minTime) minTime = time;
+                timeLogs.push({ name: c.name, time: time, lat: c.lat, lng: c.lng });
+            });
+            scoredCandidates.push({ ...p, variance: maxTime - minTime, totalTime: totalTime, logs: timeLogs });
+        });
+
+        scoredCandidates.sort((a,b) => (a.variance === b.variance) ? a.totalTime - b.totalTime : a.variance - b.variance);
+        const top3Places = scoredCandidates.slice(0, 3); // 3순위까지 추출
+
+        const doPlace = document.getElementById('chkPlace').checked;
+        const doFood = document.getElementById('chkFood').checked;
+        const doPlay = document.getElementById('chkPlay').checked;
+
+        clearMarkers('toilet');
+
+        // [거점 렌더링 - 텍스트 UI]
+        if (doPlace) {
+            document.getElementById('resultBoxPlace').style.display = 'block';
+            let placeHtml = "";
+            for (let idx = 0; idx < top3Places.length; idx++) {
+                const p = top3Places[idx];
+                let timeLogStr = "";
+                
+                p.logs.forEach(l => {
+                    timeLogStr += `<div style="margin-top:8px;">• [${l.name}] 출발 ➡️ 약 ${l.time}분 소요 예상</div>`;
+                });
+                
+                const badgeExtra = (idx === 0) ? `<span class="best-badge">👑 최적 효율 만남 지점</span>` : "";
+                placeHtml += `
+                    <div class="sub-block" style="border-left-color: #4f46e5;">
+                        <strong style="font-size: 1.1rem;"><span class="rank-badge">${idx+1}순위</span> ${p.name} ${badgeExtra}</strong><br>
+                        <span style="font-size:0.9rem; color:#475569; line-height:1.5;">${timeLogStr}</span>
+                    </div>
+                `;
+                appendCustomMarker(p.lat, p.lng, `[${idx+1}순위] ${p.name}`, `${p.name}\n멤버들의 합류 거점입니다.`, 'center');
+            }
+            document.getElementById('placeList').innerHTML = placeHtml;
+            map.setCenter(new kakao.maps.LatLng(top3Places[0].lat, top3Places[0].lng));
+            map.setLevel(7);
+        } else { document.getElementById('resultBoxPlace').style.display = 'none'; }
+
+        // [맛집 렌더링 - API 연동 & 텍스트 UI]
+        if (doFood) {
+            document.getElementById('resultBoxFood').style.display = 'block';
+            let foodHtml = "";
+            
+            for (let pIdx = 0; pIdx < top3Places.length; pIdx++) {
+                const p = top3Places[pIdx];
+                foodHtml += `<div style="margin: 15px 0 8px 0; font-weight: bold; color: #c2410c; font-size: 1rem;">📍 ${pIdx+1}순위 [${p.name}] 인근 실시간 식당:</div>`;
+                
+                let response = await searchKakaoRestaurants(p.lat, p.lng);
+
+                if(response.status === 'error') {
+                    foodHtml += `<div class="sub-block" style="border-left-color:#ef4444; background:#fee2e2;">🚨 <b>[API 요청 차단됨]</b> 카카오 API가 막혔습니다! Live Server 실행 및 카카오 디벨로퍼스 도메인 등록을 확인해주세요.</div>`;
+                } else if(response.status === 'empty' || response.data.length === 0) {
+                    foodHtml += `<div class="sub-block">주변에 조건에 맞는 식당이 없습니다. 필터를 완화해주세요.</div>`;
+                } else {
+                    response.data.forEach((r, idx) => {
+                        const categoryShort = r.category_name.split(' > ').pop() || "음식점";
+                        foodHtml += `
+                            <div class="sub-block" style="border-left-color: #ef4444;">
+                                <strong style="font-size:1.05rem;"><span class="rank-badge" style="background:#ef4444;">맛집 ${idx+1}</span> ${r.place_name} <span style="color:#64748b; font-size:0.85rem;">[${categoryShort}]</span></strong><br>
+                                <span style="font-size:0.9rem; color:#475569; display:block; margin-top:5px;">📍 지번: ${r.address_name} (약 ${r.distance}m 거리)</span>
+                                <span style="font-size:0.9rem; color:#475569; display:block;">📞 연락처: ${r.phone || '제공되지 않음'}</span>
+                            </div>
+                        `;
+                        appendCustomMarker(parseFloat(r.y), parseFloat(r.x), r.place_name, `[${categoryShort}]\n${r.place_name}\n거리: ${r.distance}m`, 'food');
+                    });
+                }
+            }
+            document.getElementById('foodList').innerHTML = foodHtml;
+        } else { document.getElementById('resultBoxFood').style.display = 'none'; }
+
+        // [놀거리 렌더링 - API 연동 & 텍스트 UI]
+        if (doPlay) {
+            document.getElementById('resultBoxPlay').style.display = 'block';
+            let playHtml = "";
+
+            for (let pIdx = 0; pIdx < top3Places.length; pIdx++) {
+                const p = top3Places[pIdx];
+                playHtml += `<div style="margin: 15px 0 8px 0; font-weight: bold; color: #7e22ce; font-size: 1rem;">📍 ${pIdx+1}순위 [${p.name}] 인근 실시간 놀거리:</div>`;
+                
+                let response = await searchKakaoPlay(p.lat, p.lng);
+
+                if(response.status === 'error') {
+                    playHtml += `<div class="sub-block" style="border-left-color:#ef4444; background:#fee2e2;">🚨 <b>[API 요청 차단됨]</b> 카카오 API가 막혔습니다! Live Server 실행 및 카카오 디벨로퍼스 도메인 등록을 확인해주세요.</div>`;
+                } else if(response.status === 'empty' || response.data.length === 0) {
+                    playHtml += `<div class="sub-block">조건에 맞는 놀거리가 주변에 없습니다. 키워드를 변경해보세요.</div>`;
+                } else {
+                    response.data.forEach((r, idx) => {
+                        const categoryShort = r.category_name.split(' > ').pop() || "여가/놀거리";
+                        playHtml += `
+                            <div class="sub-block" style="border-left-color: #a855f7;">
+                                <strong style="font-size:1.05rem;"><span class="rank-badge" style="background:#a855f7;">추천코스 ${idx+1}</span> ${r.place_name} <span style="color:#64748b; font-size:0.85rem;">[${categoryShort}]</span></strong><br>
+                                <span style="font-size:0.9rem; color:#475569; display:block; margin-top:5px;">📍 지번: ${r.address_name} (약 ${r.distance}m 거리)</span>
+                                <span style="font-size:0.9rem; color:#475569; display:block;">📞 연락처: ${r.phone || '제공되지 않음'}</span>
+                            </div>
+                        `;
+                        appendCustomMarker(parseFloat(r.y), parseFloat(r.x), r.place_name, `[${categoryShort}]\n${r.place_name}\n거리: ${r.distance}m`, 'play');
+                    });
+                }
+            }
+            document.getElementById('playList').innerHTML = playHtml;
+        } else { document.getElementById('resultBoxPlay').style.display = 'none'; }
+    }
+
+    // --- 더치페이 무한 정산 ---
+    function checkAndAddNewRound(idx) { 
+        if (idx === currentMaxRound && document.getElementById(`billAmt${idx}`).value.trim() !== "") forceAddRound(); 
+    }
+    function forceAddRound() {
+        currentMaxRound++;
+        const container = document.getElementById('dutchBillContainer');
+        const block = document.createElement('div');
+        block.className = 'sub-block';
+        block.id = `round-block-${currentMaxRound}`;
+        block.style.borderLeftColor = "#3b82f6";
+        block.innerHTML = `
+            <h4>[${currentMaxRound}차 결제]</h4>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:5px;">
+                <input type="text" placeholder="장소명" id="billName${currentMaxRound}">
+                <input type="number" class="bill-amount" placeholder="결제 금액 (원)" id="billAmt${currentMaxRound}" step="1000" oninput="checkAndAddNewRound(${currentMaxRound})">
+            </div>
+            <input type="number" class="bill-people" placeholder="참여 인원 수 (명)" id="billPpl${currentMaxRound}" value="3">
+        `;
+        container.appendChild(block);
+    }
+    function calculateTotalDutch() {
+        let grandTotal = 0, log = "", maxP = 3;
+        for (let i = 1; i <= currentMaxRound; i++) {
+            const amtEl = document.getElementById(`billAmt${i}`);
+            if (amtEl && amtEl.value) {
+                const amt = parseInt(amtEl.value) || 0; const ppl = parseInt(document.getElementById(`billPpl${i}`).value) || 1;
+                const name = document.getElementById(`billName${i}`).value || `${i}차 모임처`;
+                if(ppl > maxP) maxP = ppl;
+                let split = amt / ppl; grandTotal += split;
+                log += `• ${name}: ${amt.toLocaleString()}원 (${ppl}인) ➡️ 인당 ${Math.floor(split).toLocaleString()}원<br>`;
+            }
+        }
+        const cleanBill = Math.floor(grandTotal / 100) * 100;
+        const targetPpl = parseInt(document.getElementById('billPpl1').value) || maxP;
+        rouletteRemainder = Math.round((grandTotal - cleanBill) * targetPpl); rouletteTotalPeople = targetPpl;
+        const resDiv = document.getElementById('dutchFinalResult'); resDiv.style.display = 'block';
+        let html = `<h3>📊 고도화 정산 완료</h3>${log}<hr style="border:0; border-top:1px dashed #ccc;">💰 기본 인당 청구액: <strong>${cleanBill.toLocaleString()}원</strong><br>`;
+        const triggerArea = document.getElementById('dutchRouletteTriggerArea');
+        if (rouletteRemainder > 0) { triggerArea.innerHTML = `<button class="btn btn-danger" onclick="launchRouletteModal()">낙수잔돈 ${rouletteRemainder}원 독박 룰렛 돌리기</button>`; } 
+        else { triggerArea.innerHTML = `<p style="color:#10b981; font-weight:bold;">✅ 정산 깔끔 마감 (룰렛 불필요)</p>`; }
+        resDiv.innerHTML = html;
+    }
+
+    function launchRouletteModal() { document.getElementById('penaltyAmount').innerText = rouletteRemainder; document.getElementById('rouletteModal').style.display = 'flex'; drawRouletteCanvas(0); }
+    function drawRouletteCanvas(angleOffset) {
+        const canvas = document.getElementById('rouletteCanvas'); if (!canvas) return; const ctx = canvas.getContext('2d');
+        const colors = ["#f43f5e", "#3b82f6", "#10b981", "#eab308", "#a855f7"]; ctx.clearRect(0, 0, 250, 250); const arc = (2 * Math.PI) / rouletteTotalPeople;
+        for (let i = 0; i < rouletteTotalPeople; i++) {
+            ctx.beginPath(); ctx.fillStyle = colors[i % colors.length]; ctx.moveTo(125, 125); ctx.arc(125, 125, 120, i * arc + angleOffset, (i + 1) * arc + angleOffset); ctx.fill();
+            ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke(); ctx.save(); ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif";
+            ctx.translate(125, 125); ctx.rotate(i * arc + arc / 2 + angleOffset); ctx.textAlign = "right"; ctx.fillText(`멤버 ${i+1}`, 110, 5); ctx.restore();
+        }
+    }
+    function spinWheel() {
+        document.getElementById('spinBtn').disabled = true; let speed = Math.random() * 0.22 + 0.45; let currentAngle = 0;
+        function animate() {
+            speed *= 0.982; currentAngle += speed; drawRouletteCanvas(currentAngle);
+            if (speed > 0.0015) { requestAnimationFrame(animate); } 
+            else { document.getElementById('spinBtn').disabled = false; const winner = Math.floor(((3 * Math.PI / 2 - (currentAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / ((2 * Math.PI) / rouletteTotalPeople)) + 1; alert(`🎯 멤버 ${winner}님이 잔돈 독박 총대 책임자로 당첨!`); }
+        }
+        animate();
+    }
+    function closeModal() { document.getElementById('rouletteModal').style.display = 'none'; }
+
+    // --- 화장실 제보 & 관리자 승인 ---
+    function submitNewToiletQueue() { 
+        dynamicQueueCount++;
+        const name = document.getElementById('newTName').value.trim();
+        const lat = document.getElementById('newTLat').value;
+        const lng = document.getElementById('newTLng').value;
+        const type = document.getElementById('newTType').value;
+        const paper = document.getElementById('newTPaper').value;
+        const info = document.getElementById('newTInfo').value;
+
+        if(!name || !lat || !lng) { alert('❌ 4번 탭 지도에서 화장실 위치를 먼저 터치(클릭)해 주세요!'); return; }
+
+        const container = document.getElementById('adminQueueContainer');
+        const item = document.createElement('div');
+        item.className = 'sub-block'; item.id = `q-item-${dynamicQueueCount}`; item.style.borderLeftColor = "#f59e0b";
+        item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;"><strong>📍 ${name}</strong><span class="badge-pending">심의대기</span></div>
+            <p style="font-size:0.85rem; margin:5px 0;">🚽 타입: <b>${type}</b> | 🧻 휴지: ${paper}<br>ℹ️ 설명: ${info}</p>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="btn" style="padding:8px; margin-top:5px; background:#10b981;" onclick="approveToilet(${lat}, ${lng}, '${name}', '타입:${type} / 휴지:${paper}\\n${info}', 'q-item-${dynamicQueueCount}')">승인</button>
+                <button class="btn btn-danger" style="padding:8px; margin-top:5px;" onclick="rejectToilet('q-item-${dynamicQueueCount}')">기각</button>
+            </div>
+        `;
+        container.appendChild(item);
+        alert('📬 개발자 심의 대기열로 제보 송신 완료!');
+    }
+
+    function approveToilet(lat, lng, name, info, elementId) {
+        appendCustomMarker(lat, lng, name, info, 'toilet');
+        document.getElementById(elementId).remove();
+        alert(`✅ 승인 완료: 메인 지도에 실시간 반영되었습니다.`);
+    }
+
+    function rejectToilet(elementId) { document.getElementById(elementId).remove(); alert(`❌ 기각 완료.`); }
+
+    function unlockAdminPanel() {
+        if(document.getElementById('adminPwd').value === "1234") { 
+            document.getElementById('adminAuthSection').style.display = 'none'; 
+            document.getElementById('adminPanelArea').style.display = 'block'; 
+        } else { alert('❌ 패스워드가 다릅니다.'); }
+    }
+</script>
+</body>
+</html>
